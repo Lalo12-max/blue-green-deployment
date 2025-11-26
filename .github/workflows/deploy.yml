@@ -3,11 +3,7 @@ name: Deploy Application
 on:
   push:
     branches: [ main, master ]
-  pull_request:
-    branches: [ main, master ]
-
-env:
-  PASSWORD: ${{ secrets.SUDO_PASSWORD }}
+  workflow_dispatch:  # Permite ejecución manual
 
 jobs:
   deploy:
@@ -17,11 +13,6 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Set up SSH connection
-      uses: webfactory/ssh-agent@v0.8.0
-      with:
-        ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
-
     - name: Deploy to server
       uses: appleboy/ssh-action@master
       with:
@@ -29,6 +20,4 @@ jobs:
         username: ${{ secrets.SSH_USER }}
         key: ${{ secrets.SSH_PRIVATE_KEY }}
         script: |
-                  /home/deployer/scripts/cambio.sh  
-
-
+          /home/deployer/scripts/cambio.sh "${{ secrets.SUDO_PASSWORD }}"
