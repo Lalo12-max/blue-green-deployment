@@ -1,0 +1,35 @@
+name: Deploy Application
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+env:
+  PASSWORD: ${{ secrets.SUDO_PASSWORD }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up SSH connection
+      uses: webfactory/ssh-agent@v0.8.0
+      with:
+        ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+    - name: Deploy to server
+      run: |
+        # Copiar el script al servidor
+        scp -o StrictHostKeyChecking=no ~/scripts/cambio.sh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:~/scripts/cambio.sh
+        
+        # Ejecutar el script en el servidor
+        ssh -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} << 'EOF'
+          export PASSWORD="$PASSWORD"
+          chmod +x ~/scripts/cambio.sh
+          ~/scripts/cambio.sh
+        EOF
