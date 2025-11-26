@@ -24,12 +24,4 @@ jobs:
 
     - name: Deploy to server
       run: |
-        # Copiar el script al servidor
-        scp -o StrictHostKeyChecking=no ~/scripts/cambio.sh ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }}:~/scripts/cambio.sh
-        
-        # Ejecutar el script en el servidor
-        ssh -o StrictHostKeyChecking=no ${{ secrets.SERVER_USER }}@${{ secrets.SERVER_HOST }} << 'EOF'
-          export PASSWORD="$PASSWORD"
-          chmod +x ~/scripts/cambio.sh
-          ~/scripts/cambio.sh
-        EOF
+        ~/scripts/cambio.sh      
