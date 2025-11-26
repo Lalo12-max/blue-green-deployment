@@ -23,5 +23,13 @@ jobs:
         ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
     - name: Deploy to server
-      run: |
-        /home/deployer/scripts/cambio.sh      
+      uses: appleboy/ssh-action@master
+      with:
+        host: ${{ secrets.SSH_HOST }}
+        username: ${{ secrets.SSH_USER }}
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        port: ${{ secrets.SSH_PORT }} # Opcional, si es 22, no es necesario añadirlo
+        script: |
+                  /home/deployer/scripts/cambio.sh  
+
+
