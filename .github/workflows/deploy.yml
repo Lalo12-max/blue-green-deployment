@@ -134,24 +134,24 @@ jobs:
             echo "🌿 Branch: ${{ github.ref }}"
             echo "👤 Ejecutado por: ${{ github.actor }}"
 
-            cd /home/deployer/scripts
+            # Asegurar directorios remotos
+            mkdir -p /home/deployer/scripts
+            mkdir -p /home/deployer/app
 
-            # Copiar scripts del repo al servidor (solo si existen)
-            rsync -avz --delete ./ /home/deployer/scripts/
+            echo "📦 Sincronizando carpeta de scripts..."
+            rsync -avz --delete ./scripts/ /home/deployer/scripts/
 
-            # Dar permisos
             chmod +x /home/deployer/scripts/*.sh
 
-            script: |
-            set -e
-              echo "📦 Sincronizando carpeta APP..."
-              rsync -avz --delete ./app/ /home/deployer/app/
-            
-              echo "▶️ Ejecutando cambio.sh..."
-              /home/deployer/scripts/cambio.sh "${{ secrets.SERVER_PASSWORD }}"
+            echo "📦 Sincronizando carpeta APP..."
+            rsync -avz --delete ./app/ /home/deployer/app/
+
+            echo "▶️ Ejecutando cambio.sh..."
+            /home/deployer/scripts/cambio.sh "${{ secrets.SERVER_PASSWORD }}"
 
             echo "🌐 IP Pública:"
             curl -s ifconfig.me || echo "IP no disponible"
+
 
       - name: "🔔 Notificación final"
         if: always()
