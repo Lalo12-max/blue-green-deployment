@@ -155,20 +155,22 @@ log "✅ Configuración Nginx lista"
 # =====================================================
 log "FASE 5: Desplegando $TARGET_ENV..."
 
-# Asegurar rutas destino y sincronizar con rsync (más seguro que cp -r)
 sudo_with_pass mkdir -p /srv/app/"$TARGET_ENV"
-# Sincronizamos desde $HOME/app al /srv/app/<target>
 sudo_with_pass rsync -a --delete "$HOME/app"/ /srv/app/"$TARGET_ENV"/
 
-# Entrar al directorio del target y recrear con docker-compose
 cd /srv/app/"$TARGET_ENV"
 
-# Parar contenedores anteriores del compose si los hay
-docker-compose down || true
+# 🔥 FIX: eliminar contenedores previos u huérfanos
+docker-compose down --remove-orphans || true
 
-# Construir y levantar
+# 🔥 FIX EXTRA: si quedaron contenedores con nombre estático, removerlos duro
+docker rm -f app_blue 2>/dev/null || true
+docker rm -f app_green 2>/dev/null || true
+
+# 🔧 reconstruir y levantar
 docker-compose build --no-cache
 docker-compose up -d
+
 
 # =====================================================
 # FASE 6: Health Check
