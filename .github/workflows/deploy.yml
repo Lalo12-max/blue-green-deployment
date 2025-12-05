@@ -5,7 +5,6 @@ on:
     branches: [ main, master ]
   workflow_dispatch: {}
 
-
 env:
   NODE_VERSION: '18'
   DOCKER_IMAGE: 'blue-green-app'
@@ -13,50 +12,38 @@ env:
 jobs:
   test:
     runs-on: ubuntu-latest
-    name: "🧪 Pruebas de Integración (Supertest)"
+    name: "🧪 Pruebas de Integración"
     steps:
       - name: "📥 Checkout del código"
         uses: actions/checkout@v4
 
-      - name: "⚙️ Configurar Node.js ${{ env.NODE_VERSION }}"
+      - name: "⚙️ Configurar Node.js"
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
           cache-dependency-path: app/package-lock.json
 
-
       - name: "📦 Verificar estructura del proyecto"
         working-directory: ./app
         run: |
           echo "📁 Contenido del directorio app:"
           ls -la
-          echo ""
-          if [ -f "package.json" ]; then
-            echo "✅ package.json encontrado"
-            cat package.json | sed -n '1,120p' | grep -E '"name"|"version"|"scripts"' || true
-          else
-            echo "❌ ERROR: No se encontró package.json en ./app"
+          if [ ! -f "package.json" ]; then
+            echo "❌ ERROR: No se encontró package.json"
             exit 1
           fi
 
       - name: "📦 Instalar dependencias"
         working-directory: ./app
         run: |
-          echo "🔍 Buscando archivo de lock en ./app..."
           if [ -f "package-lock.json" ]; then
-            echo "📦 Usando package-lock.json"
             npm ci
-          elif [ -f "yarn.lock" ]; then
-            echo "🐈 Usando yarn.lock"
-            yarn install --frozen-lockfile
           else
-            echo "⚠️  No se encontró lock file en ./app, usando npm install"
             npm install
           fi
-          echo "✅ Dependencias instaladas"
 
-      - name: "🔧 Verificar instalación de Jest"
+      - name: "🔧 Instalar Jest si es necesario"
         working-directory: ./app
         run: |
           if ! npm list jest > /dev/null 2>&1; then
@@ -64,43 +51,15 @@ jobs:
             npm install --save-dev jest supertest
           fi
 
-      - name: "🧪 Ejecutar pruebas de integración"
+      - name: "🧪 Ejecutar pruebas"
         working-directory: ./app
         run: |
-          echo "🧪 Iniciando suite de pruebas..."
-          echo "🚀 Ejecutando pruebas..."
-
+          echo "🧪 Ejecutando pruebas..."
           if npm test --silent; then
             echo "✅ Pruebas OK"
           else
-            echo "ℹ️ No hay pruebas o falló npm test; ejecutando jest por fallback"
+            echo "ℹ️ Ejecutando fallback a jest"
             npx jest --passWithNoTests || true
-          fi
-
-          echo "✅ Pruebas completadas"
-
-        
-
-          # Ejecutar pruebas (usar npm test si existe script)
-          if npm run test --silent; then
-            echo "✅ Pruebas OK"
-          else
-            echo "ℹ️  npm test falló o no hay tests — intentando npx jest --passWithNoTests"
-            npx jest --passWithNoTests || true
-          fi
-
-      - name: "📊 Generar reporte de cobertura"
-        working-directory: ./app
-        run: |
-          echo "📊 Generando reporte de cobertura..."
-          if [ -d "coverage" ]; then
-            echo "📈 Cobertura de código (resumen):"
-            if [ -f "coverage/lcov.info" ]; then
-              # Mostrar resumen if available
-              tail -n +1 coverage/lcov.info | head -n 40 || true
-            fi
-          else
-            echo "ℹ️  No se generó reporte de cobertura"
           fi
 
       - name: "📁 Archivar resultados"
@@ -110,7 +69,6 @@ jobs:
           name: test-results-${{ github.run_number }}
           path: |
             app/coverage/
-            app/test-report.xml
           retention-days: 7
 
   build:
@@ -132,46 +90,34 @@ jobs:
 
       - name: "🏗️ Construir imagen Docker"
         run: |
-              echo "🏗️ Construyendo imagen (contexto = ./app)..."
-          
-              docker build -t ${{ secrets.DOCKER_USERNAME }}/${{ env.DOCKER_IMAGE }}:latest ./app
-              docker build -t ${{ secrets.DOCKER_USERNAME }}/${{ env.DOCKER_IMAGE }}:${{ github.sha }} ./app
-          
-              echo "✅ Imagen construida exitosamente"
-
+          echo "🏗️ Construyendo imagen..."
+          docker build -t ${{ secrets.DOCKER_USERNAME }}/${{ env.DOCKER_IMAGE }}:latest ./app
+          docker build -t ${{ secrets.DOCKER_USERNAME }}/${{ env.DOCKER_IMAGE }}:${{ github.sha }} ./app
+          echo "✅ Imagen construida"
 
       - name: "🚀 Subir imagen a Docker Hub"
         run: |
-          echo "🚀 Subiendo imágenes a Docker Hub..."
           docker push ${{ secrets.DOCKER_USERNAME }}/${{ env.DOCKER_IMAGE }}:latest
           docker push ${{ secrets.DOCKER_USERNAME }}/${{ env.DOCKER_IMAGE }}:${{ github.sha }}
-          echo "✅ Imágenes subidas exitosamente"
+          echo "✅ Imágenes publicadas"
 
   deploy:
     needs: [test, build]
     runs-on: ubuntu-latest
-    name: "🚀 Despliegue Blue-Green"
+    name: "🚀 Deploy Blue-Green"
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     steps:
       - name: "📥 Checkout del código"
         uses: actions/checkout@v4
 
-      - name: "🔐 Verificar configuración SSH"
+      - name: "🔐 Validar Secrets"
         run: |
-          echo "🔍 Verificando secrets..."
-          # Revisar secrets críticos (expandidos por GitHub Actions)
           if [ -z "${{ secrets.SSH_HOST }}" ] || [ -z "${{ secrets.SSH_USER }}" ] || [ -z "${{ secrets.SSH_PRIVATE_KEY }}" ]; then
-            echo "❌ ERROR: Faltan secrets obligatorios. Configura en Settings > Secrets:"
-            echo "   - SSH_HOST"
-            echo "   - SSH_USER"
-            echo "   - SSH_PRIVATE_KEY"
+            echo "❌ ERROR: Faltan secrets SSH obligatorios"
             exit 1
           fi
-          echo "✅ Todos los secrets necesarios están configurados"
-          echo "🌐 SSH_HOST: ${{ secrets.SSH_HOST }}"
-          echo "👤 SSH_USER: ${{ secrets.SSH_USER }}"
 
-      - name: "🚀 Desplegar en servidor (SSH)"
+      - name: "🚀 Deploy remoto vía SSH"
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -179,51 +125,34 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: 22
           timeout: 60s
-          command_timeout: 300s
           script: |
             set -e
+
             echo "🚀 INICIANDO DESPLIEGUE AUTOMATIZADO"
             echo "📅 Fecha: $(date)"
             echo "🔗 Commit: ${{ github.sha }}"
             echo "🌿 Branch: ${{ github.ref }}"
             echo "👤 Ejecutado por: ${{ github.actor }}"
 
-            cd /home/deployer || exit 1
+            cd /home/deployer/scripts
 
-            echo "📁 Verificando directorio scripts..."
-            mkdir -p /home/deployer/scripts
+            # Copiar scripts del repo al servidor (solo si existen)
+            rsync -avz --delete ./ /home/deployer/scripts/
 
-            echo "📥 Copiando scripts del repositorio..."
-            rsync -avz ./scripts/ /home/deployer/scripts/
-
-            echo "🔧 Dando permisos de ejecución..."
+            # Dar permisos
             chmod +x /home/deployer/scripts/*.sh
 
-            echo "🚀 Ejecutando cambio.sh"
-            /home/deployer/scripts/cambio.sh "${{ secrets.PASSWORD }}" || ( echo "❌ fallo script cambio.sh" && exit 1 )
+            echo "▶️ Ejecutando cambio.sh..."
+            /home/deployer/scripts/cambio.sh || ( echo "❌ Falló cambio.sh" && exit 1 )
 
-            PUBLIC_IP=$(curl -s ifconfig.me || echo "IP-no-disponible")
-            echo "🌐 URL Pública: http://$PUBLIC_IP"
-            echo "🐳 Contenedores activos: $(docker ps --format '{{.Names}}' | wc -l || echo '0')"
+            echo "🌐 IP Pública:"
+            curl -s ifconfig.me || echo "IP no disponible"
 
-
-      - name: "📊 Generar reporte de despliegue"
-        if: always()
-        run: |
-          echo "📋 REPORTE DEL PIPELINE CI/CD"
-          echo "🏗️  Proyecto: ${{ github.repository }}"
-          echo "🔗 SHA: ${{ github.sha }}"
-          echo "🚀 Workflow: ${{ github.workflow }}"
-          echo "🆔 Run ID: ${{ github.run_id }}"
-          echo "🔄 Run Number: ${{ github.run_number }}"
-
-      - name: "🔔 Notificar resultado"
+      - name: "🔔 Notificación final"
         if: always()
         run: |
           if [ "${{ job.status }}" = "success" ]; then
-            echo "🎉 ¡Pipeline ejecutado exitosamente!"
-            echo "🚀 Aplicación desplegada en: http://${{ secrets.SSH_HOST }}"
+            echo "🎉 Deploy exitoso en: http://${{ secrets.SSH_HOST }}"
           else
-            echo "⚠️  Pipeline completado con estado: ${{ job.status }}"
-            echo "📋 Revisa los logs para más detalles"
+            echo "⚠️ El deploy falló"
           fi
