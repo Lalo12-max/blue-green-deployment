@@ -179,7 +179,7 @@ jobs:
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           port: 22
           timeout: 60s
-          script_timeout: 300s
+          command_timeout: 300s
           script: |
             set -e
             echo "🚀 INICIANDO DESPLIEGUE AUTOMATIZADO"
@@ -190,31 +190,22 @@ jobs:
 
             cd /home/deployer || exit 1
 
-            # Si no existe scripts, crear estructura mínima
-            if [ ! -d "/home/deployer/scripts" ]; then
-              mkdir -p /home/deployer/scripts
-            fi
+            echo "📁 Verificando directorio scripts..."
+            mkdir -p /home/deployer/scripts
 
-            # Crear/asegurar script básico cambio.sh si no existe
-            if [ ! -f "/home/deployer/scripts/cambio.sh" ]; then
-              cat > /home/deployer/scripts/cambio.sh << 'SCRIPTEOF'
-                  #!/bin/bash
-                  echo "Script de despliegue básico (placeholder)"
-                  # Aquí deberías: pull del repo, copiar archivos a /srv/app/blue o /srv/app/green,
-                  # docker-compose build/up y swap del virtual host nginx.
-                  sleep 2
-                  echo "✅ Despliegue simulado exitoso"
-                  SCRIPTEOF
-              chmod +x /home/deployer/scripts/cambio.sh
-            fi
+            echo "📥 Copiando scripts del repositorio..."
+            rsync -avz ./scripts/ /home/deployer/scripts/
 
-            # Ejecutar el script (si requiere sudo, el script lo debe manejar)
-            /home/deployer/scripts/cambio.sh || ( echo "❌ fallo script cambio.sh" && exit 1 )
+            echo "🔧 Dando permisos de ejecución..."
+            chmod +x /home/deployer/scripts/*.sh
 
-            # Reporte simple
+            echo "🚀 Ejecutando cambio.sh"
+            /home/deployer/scripts/cambio.sh || (echo "❌ Falló el cambio.sh" && exit 1)
+
             PUBLIC_IP=$(curl -s ifconfig.me || echo "IP-no-disponible")
             echo "🌐 URL Pública: http://$PUBLIC_IP"
             echo "🐳 Contenedores activos: $(docker ps --format '{{.Names}}' | wc -l || echo '0')"
+
 
       - name: "📊 Generar reporte de despliegue"
         if: always()
