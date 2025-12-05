@@ -65,16 +65,16 @@ jobs:
         # Crear archivo de configuración de Jest si no existe
         if [ ! -f "jest.config.js" ]; then
           cat > jest.config.js << JESTCONFIG
-module.exports = {
-  testEnvironment: 'node',
-  verbose: true,
-  collectCoverage: true,
-  coverageDirectory: 'coverage',
-  coverageReporters: ['text', 'lcov'],
-  testMatch: ['**/server.test.js', '**/*.test.js'],
-  setupFilesAfterEnv: [],
-};
-JESTCONFIG
+        module.exports = {
+          testEnvironment: 'node',
+          verbose: true,
+          collectCoverage: true,
+          coverageDirectory: 'coverage',
+          coverageReporters: ['text', 'lcov'],
+          testMatch: ['**/server.test.js', '**/*.test.js'],
+          setupFilesAfterEnv: [],
+        };
+        JESTCONFIG
           echo "✅ Configuración de Jest creada"
         fi
     
@@ -86,58 +86,58 @@ JESTCONFIG
         if [ ! -f "server.test.js" ]; then
           echo "⚠️  No se encontró server.test.js, creando pruebas básicas..."
           cat > server.test.js << TESTFILE
-const request = require('supertest');
-const app = require('./server');
+          const request = require('supertest');
+          const app = require('./server');
 
-describe('API Endpoints', () => {
-  test('GET /health should return 200', async () => {
-    const response = await request(app).get('/health');
-    expect(response.statusCode).toBe(200);
-    expect(response.body.status).toBe('OK');
-  });
-
-  test('GET / should return welcome message', async () => {
-    const response = await request(app).get('/');
-    expect(response.statusCode).toBe(200);
-    expect(response.body).toHaveProperty('message');
-  });
-
-  test('GET /api/users should return users array', async () => {
-    const response = await request(app).get('/api/users');
-    expect(response.statusCode).toBe(200);
-    expect(Array.isArray(response.body.users)).toBe(true);
-  });
-});
-TESTFILE
-        fi
+        describe('API Endpoints', () => {
+          test('GET /health should return 200', async () => {
+            const response = await request(app).get('/health');
+            expect(response.statusCode).toBe(200);
+            expect(response.body.status).toBe('OK');
+          });
         
-        # Ejecutar pruebas
-        echo "🚀 Ejecutando pruebas..."
-        npm test || npx jest --passWithNoTests
+          test('GET / should return welcome message', async () => {
+            const response = await request(app).get('/');
+            expect(response.statusCode).toBe(200);
+            expect(response.body).toHaveProperty('message');
+          });
         
-        echo "✅ Pruebas ejecutadas"
-    
-    - name: "📊 Generar reporte de cobertura"
-      run: |
-        echo "📊 Generando reporte de cobertura..."
-        if [ -d "coverage" ]; then
-          echo "📈 Cobertura de código:"
-          if [ -f "coverage/lcov.info" ]; then
-            grep -E '^(Lines|Branches|Functions|Statements):' coverage/lcov.info || true
-          fi
-        else
-          echo "ℹ️  No se generó reporte de cobertura"
-        fi
-    
-    - name: "📁 Archivar resultados"
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: test-results-${{ github.run_number }}
-        path: |
-          coverage/
-          test-report.xml
-        retention-days: 7
+          test('GET /api/users should return users array', async () => {
+            const response = await request(app).get('/api/users');
+            expect(response.statusCode).toBe(200);
+            expect(Array.isArray(response.body.users)).toBe(true);
+          });
+        });
+        TESTFILE
+                fi
+                
+                # Ejecutar pruebas
+                echo "🚀 Ejecutando pruebas..."
+                npm test || npx jest --passWithNoTests
+                
+                echo "✅ Pruebas ejecutadas"
+            
+            - name: "📊 Generar reporte de cobertura"
+              run: |
+                echo "📊 Generando reporte de cobertura..."
+                if [ -d "coverage" ]; then
+                  echo "📈 Cobertura de código:"
+                  if [ -f "coverage/lcov.info" ]; then
+                    grep -E '^(Lines|Branches|Functions|Statements):' coverage/lcov.info || true
+                  fi
+                else
+                  echo "ℹ️  No se generó reporte de cobertura"
+                fi
+            
+            - name: "📁 Archivar resultados"
+              if: always()
+              uses: actions/upload-artifact@v4
+              with:
+                name: test-results-${{ github.run_number }}
+                path: |
+                  coverage/
+                  test-report.xml
+                retention-days: 7
 
   build:
     needs: test
@@ -163,22 +163,22 @@ TESTFILE
         if [ ! -f "Dockerfile" ]; then
           echo "⚠️  No se encontró Dockerfile, creando uno básico..."
           cat > Dockerfile << DOCKERFILE
-FROM node:18-alpine AS builder
-WORKDIR /app
-COPY package*.json ./
-RUN npm install
-COPY . .
-RUN npm test
-
-FROM node:18-alpine
-WORKDIR /app
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/package*.json ./
-COPY . .
-EXPOSE 3000
-CMD ["npm", "start"]
-DOCKERFILE
-        fi
+            FROM node:18-alpine AS builder
+            WORKDIR /app
+            COPY package*.json ./
+            RUN npm install
+            COPY . .
+            RUN npm test
+            
+            FROM node:18-alpine
+            WORKDIR /app
+            COPY --from=builder /app/node_modules ./node_modules
+            COPY --from=builder /app/package*.json ./
+            COPY . .
+            EXPOSE 3000
+            CMD ["npm", "start"]
+            DOCKERFILE
+                    fi
         
         echo "🏗️ Construyendo imagen..."
         docker build -t ${{ secrets.DOCKER_USERNAME }}/${{ env.DOCKER_IMAGE }}:latest .
@@ -301,13 +301,13 @@ DOCKERFILE
             # Crear script básico si no existe
             sudo mkdir -p /home/deployer/scripts
             sudo tee /home/deployer/scripts/cambio.sh > /dev/null << 'SCRIPTEOF'
-#!/bin/bash
-echo "Script de despliegue básico"
-echo "Contraseña recibida: \${1:0:3}***"
-echo "Simulando despliegue..."
-sleep 2
-echo "✅ Despliegue simulado exitoso"
-SCRIPTEOF
+                #!/bin/bash
+                echo "Script de despliegue básico"
+                echo "Contraseña recibida: \${1:0:3}***"
+                echo "Simulando despliegue..."
+                sleep 2
+                echo "✅ Despliegue simulado exitoso"
+                SCRIPTEOF
             
             sudo chmod +x /home/deployer/scripts/cambio.sh
             /home/deployer/scripts/cambio.sh "${{ secrets.PASSWORD }}"
