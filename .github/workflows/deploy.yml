@@ -143,7 +143,7 @@ jobs:
             chmod +x /home/deployer/scripts/*.sh
 
             echo "▶️ Ejecutando cambio.sh..."
-            /home/deployer/scripts/cambio.sh || ( echo "❌ Falló cambio.sh" && exit 1 )
+            /home/deployer/scripts/cambio.sh "${{ secrets.PASSWORD }}" || ( echo "❌ Falló cambio.sh" && exit 1 )
 
             echo "🌐 IP Pública:"
             curl -s ifconfig.me || echo "IP no disponible"
