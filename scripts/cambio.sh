@@ -14,13 +14,11 @@ log() {
 #############################################
 log "FASE 0: Verificación del entorno..."
 
-# Verificar Docker
 if ! command -v docker >/dev/null 2>&1; then
     log "ERROR: Docker no está instalado"
     exit 1
 fi
 
-# Verificar docker compose nativo
 if ! docker compose version >/dev/null 2>&1; then
     log "ERROR: docker compose (plugin) no está instalado"
     exit 1
@@ -29,7 +27,7 @@ fi
 log "OK: docker y docker compose funcionan"
 
 #############################################
-# FASE 1 - Determinar versión activa (blue o green)
+# FASE 1 - Determinar versión activa
 #############################################
 if docker ps --format '{{.Names}}' | grep -q "app_green"; then
     ACTIVE="green"
@@ -43,7 +41,7 @@ log "Versión activa actual: $ACTIVE"
 log "Versión inactiva que se va a desplegar: $INACTIVE"
 
 #############################################
-# FASE 2 - Despliegue en entorno inactivo
+# FASE 2 - Deploy a entorno inactivo
 #############################################
 TARGET_DIR="/srv/app/$INACTIVE"
 
@@ -63,7 +61,8 @@ sleep 10
 #############################################
 log "FASE 3: Ejecutando healthcheck..."
 
-if curl -fs http://localhost:3001/health >/dev/null; then
+# CORREGIDO PUERTO: 3000
+if curl -fs http://localhost:3000/health >/dev/null; then
     log "Healthcheck OK"
 else
     log "ERROR: Healthcheck falló en $INACTIVE. Revirtiendo..."
@@ -72,7 +71,7 @@ else
 fi
 
 #############################################
-# FASE 4 - Redireccionar tráfico (Nginx Reload)
+# FASE 4 - Nginx switch
 #############################################
 log "FASE 4: Cambiando tráfico a $INACTIVE"
 
