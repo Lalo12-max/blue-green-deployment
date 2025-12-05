@@ -1,26 +1,25 @@
-# Build stage
+# app/Dockerfile — usa CONTEXTO ./app
 FROM node:18-alpine AS builder
 WORKDIR /app
 
-# Copiar archivos necesarios
+# Copiar package.json y package-lock para aprovechar cache
 COPY package*.json ./
-COPY server.js ./
 
-# Instalar dependencias (solo producción)
-RUN npm install --omit=dev
+# Instalar dependencias (dev opcionalmente) — aquí instalamos todo para que funcione localmente
+RUN npm install
+
+# Copiar el resto de la aplicación desde el contexto (./app)
+COPY . .
 
 # Production stage
 FROM node:18-alpine AS production
 WORKDIR /app
 
-# Crear usuario seguro
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S nodejs -u 1001
 
-# Copiar deps y código
-COPY --from=builder --chown=nodejs:nodejs /app/node_modules ./node_modules
-COPY --chown=nodejs:nodejs server.js ./
-COPY --chown=nodejs:nodejs package*.json ./
+# Copiar desde builder
+COPY --from=builder --chown=nodejs:nodejs /app /app
 
 USER nodejs
 
