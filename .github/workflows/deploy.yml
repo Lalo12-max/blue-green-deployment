@@ -132,35 +132,13 @@ jobs:
 
       - name: "🏗️ Construir imagen Docker"
         run: |
-          echo "🔍 Verificando Dockerfile en ./app..."
-          if [ ! -f "./app/Dockerfile" ]; then
-            echo "⚠️  No se encontró Dockerfile en ./app, creando uno básico..."
-            cat > ./app/Dockerfile <<'DOCKERFILE'
-            FROM node:18-alpine AS builder
-            WORKDIR /app
-            COPY package*.json ./
-            RUN npm ci
-            COPY . .
-            RUN npm test || true
-            
-            FROM node:18-alpine
-            WORKDIR /app
-            COPY --from=builder /app/node_modules ./node_modules
-            COPY --from=builder /app/package*.json ./
-            COPY . .
-            EXPOSE 3000
-            CMD ["npm", "start"]
-            DOCKERFILE
-          fi
+              echo "🏗️ Construyendo imagen (contexto = ./app)..."
+          
+              docker build -t ${{ secrets.DOCKER_USERNAME }}/${{ env.DOCKER_IMAGE }}:latest ./app
+              docker build -t ${{ secrets.DOCKER_USERNAME }}/${{ env.DOCKER_IMAGE }}:${{ github.sha }} ./app
+          
+              echo "✅ Imagen construida exitosamente"
 
-          echo "🏗️ Construyendo imagen (context = ./app)..."
-          docker build -t ${{ secrets.DOCKER_USERNAME }}/${{ env.DOCKER_IMAGE }}:latest ./app
-          docker build -t ${{ secrets.DOCKER_USERNAME }}/${{ env.DOCKER_IMAGE }}:${{ github.sha }} ./app
-
-          echo "✅ Imagen construida exitosamente"
-          echo "📦 Tags:"
-          echo "  - ${{ secrets.DOCKER_USERNAME }}/${{ env.DOCKER_IMAGE }}:latest"
-          echo "  - ${{ secrets.DOCKER_USERNAME }}/${{ env.DOCKER_IMAGE }}:${{ github.sha }}"
 
       - name: "🚀 Subir imagen a Docker Hub"
         run: |
