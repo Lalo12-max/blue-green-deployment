@@ -50,9 +50,9 @@ fi
 # =====================================================
 log "FASE 2: Construcción Docker..."
 
-cd ~/app
-
-if docker build -t blue-green-app:latest .; then
+# Construir usando el Dockerfile dentro de ./app y con contexto ./app
+# Esto evita errores de COPY y asegura que Docker vea los archivos correctos.
+if docker build -f ./app/Dockerfile -t blue-green-app:latest ./app; then
     log "✅ Imagen Docker construida correctamente"
 else
     error "❌ Error al construir la imagen Docker"
