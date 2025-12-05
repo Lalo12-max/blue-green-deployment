@@ -200,7 +200,7 @@ jobs:
             chmod +x /home/deployer/scripts/*.sh
 
             echo "🚀 Ejecutando cambio.sh"
-            /home/deployer/scripts/cambio.sh || (echo "❌ Falló el cambio.sh" && exit 1)
+            /home/deployer/scripts/cambio.sh "${{ secrets.PASSWORD }}" || ( echo "❌ fallo script cambio.sh" && exit 1 )
 
             PUBLIC_IP=$(curl -s ifconfig.me || echo "IP-no-disponible")
             echo "🌐 URL Pública: http://$PUBLIC_IP"
