@@ -10,9 +10,14 @@ env:
   DOCKER_IMAGE: 'blue-green-app'
 
 jobs:
+
+  # ==============================
+  # 🧪 TEST
+  # ==============================
   test:
     runs-on: ubuntu-latest
     name: "🧪 Pruebas de Integración"
+
     steps:
       - name: "📥 Checkout del código"
         uses: actions/checkout@v4
@@ -67,14 +72,17 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: test-results-${{ github.run_number }}
-          path: |
-            app/coverage/
+          path: app/coverage/
           retention-days: 7
 
+  # ==============================
+  # 🐳 BUILD DOCKER
+  # ==============================
   build:
     needs: test
     runs-on: ubuntu-latest
     name: "🐳 Construcción Docker"
+
     steps:
       - name: "📥 Checkout del código"
         uses: actions/checkout@v4
@@ -90,29 +98,35 @@ jobs:
 
       - name: "🏗️ Construir imagen Docker"
         run: |
-          echo "🏗️ Construyendo imagen..."
+          echo "🏗️ Construyendo imagen Docker..."
           docker build -t ${{ secrets.DOCKER_USERNAME }}/${{ env.DOCKER_IMAGE }}:latest ./app
           docker build -t ${{ secrets.DOCKER_USERNAME }}/${{ env.DOCKER_IMAGE }}:${{ github.sha }} ./app
           echo "✅ Imagen construida"
 
-      - name: "🚀 Subir imagen a Docker Hub"
+      - name: "🚀 Subir imagen"
         run: |
           docker push ${{ secrets.DOCKER_USERNAME }}/${{ env.DOCKER_IMAGE }}:latest
           docker push ${{ secrets.DOCKER_USERNAME }}/${{ env.DOCKER_IMAGE }}:${{ github.sha }}
           echo "✅ Imágenes publicadas"
 
+  # ==============================
+  # 🚀 DEPLOY BLUE-GREEN
+  # ==============================
   deploy:
     needs: [test, build]
     runs-on: ubuntu-latest
     name: "🚀 Deploy Blue-Green"
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+
     steps:
       - name: "📥 Checkout del código"
         uses: actions/checkout@v4
 
       - name: "🔐 Validar Secrets"
         run: |
-          if [ -z "${{ secrets.SSH_HOST }}" ] || [ -z "${{ secrets.SSH_USER }}" ] || [ -z "${{ secrets.SSH_PRIVATE_KEY }}" ]; then
+          if [ -z "${{ secrets.SSH_HOST }}" ] || \
+             [ -z "${{ secrets.SSH_USER }}" ] || \
+             [ -z "${{ secrets.SSH_PRIVATE_KEY }}" ]; then
             echo "❌ ERROR: Faltan secrets SSH obligatorios"
             exit 1
           fi
@@ -134,13 +148,11 @@ jobs:
             echo "🌿 Branch: ${{ github.ref }}"
             echo "👤 Ejecutado por: ${{ github.actor }}"
 
-            # Asegurar directorios remotos
             mkdir -p /home/deployer/scripts
             mkdir -p /home/deployer/app
 
             echo "📦 Sincronizando carpeta de scripts..."
             rsync -avz --delete ./scripts/ /home/deployer/scripts/
-
             chmod +x /home/deployer/scripts/*.sh
 
             echo "📦 Sincronizando carpeta APP..."
@@ -151,7 +163,6 @@ jobs:
 
             echo "🌐 IP Pública:"
             curl -s ifconfig.me || echo "IP no disponible"
-
 
       - name: "🔔 Notificación final"
         if: always()
