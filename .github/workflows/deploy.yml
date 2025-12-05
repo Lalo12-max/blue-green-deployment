@@ -100,60 +100,64 @@ jobs:
           docker push ${{ secrets.DOCKER_USERNAME }}/${{ env.DOCKER_IMAGE }}:latest
           docker push ${{ secrets.DOCKER_USERNAME }}/${{ env.DOCKER_IMAGE }}:${{ github.sha }}
           echo "✅ Imágenes publicadas"
-  deploy:
-        needs: [test, build]
-        runs-on: ubuntu-latest
-        name: "🚀 Deploy Blue-Green"
-        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
-      
-        steps:
-          - name: "📥 Checkout del código"
-            uses: actions/checkout@v4
-      
-          - name: "🔐 Validar Secrets"
-            run: |
-              if [ -z "${{ secrets.SSH_HOST }}" ] || \
-                 [ -z "${{ secrets.SSH_USER }}" ] || \
-                 [ -z "${{ secrets.SSH_PRIVATE_KEY }}" ] || \
-                 [ -z "${{ secrets.SERVER_PASSWORD }}" ]; then
-                echo "❌ ERROR: Faltan secrets obligatorios"
-                exit 1
-              fi
-      
-          - name: "🚀 Deploy remoto vía SSH"
-            uses: appleboy/ssh-action@master
-            with:
-              host: ${{ secrets.SSH_HOST }}
-              username: ${{ secrets.SSH_USER }}
-              key: ${{ secrets.SSH_PRIVATE_KEY }}
-              port: 22
-              script: |
-                set -e
-                echo "🚀 INICIANDO DEPLOY"
-                echo "Commit: ${{ github.sha }}"
-      
-                # 1️⃣ Sincronizar carpeta APP del repositorio al servidor
-                echo "📦 Sincronizando /app..."
-                rsync -avz --delete ~/actions-runner/_work/${{ github.event.repository.name }}/${{ github.event.repository.name }}/app/ /home/deployer/app/
-      
-                # 2️⃣ Sincronizar scripts
-                echo "📦 Sincronizando scripts..."
-                rsync -avz --delete ~/actions-runner/_work/${{ github.event.repository.name }}/${{ github.event.repository.name }}/scripts/ /home/deployer/scripts/
-      
-                chmod +x /home/deployer/scripts/*.sh
-      
-                # 3️⃣ Ejecutar cambio.sh
-                echo "▶️ Ejecutando cambio.sh"
-                /home/deployer/scripts/cambio.sh "${{ secrets.PASSWORD }}"
-      
-                echo "🎉 DEPLOY FINALIZADO"
-      
-          - name: "🔔 Notificación final"
-            if: always()
-            run: |
-              if [ "${{ job.status }}" = "success" ]; then
-                echo "🎉 Deploy exitoso en: http://${{ secrets.SSH_HOST }}"
-              else
-                echo "⚠️ El deploy falló"
-              fi
 
+  deploy:
+    needs: [test, build]
+    runs-on: ubuntu-latest
+    name: "🚀 Deploy Blue-Green"
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    steps:
+      - name: "📥 Checkout del código"
+        uses: actions/checkout@v4
+
+      - name: "🔐 Validar Secrets"
+        run: |
+          if [ -z "${{ secrets.SSH_HOST }}" ] || [ -z "${{ secrets.SSH_USER }}" ] || [ -z "${{ secrets.SSH_PRIVATE_KEY }}" ]; then
+            echo "❌ ERROR: Faltan secrets SSH obligatorios"
+            exit 1
+          fi
+
+      - name: "🚀 Deploy remoto vía SSH"
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: 22
+          timeout: 60s
+          script: |
+            set -e
+
+            echo "🚀 INICIANDO DESPLIEGUE AUTOMATIZADO"
+            echo "📅 Fecha: $(date)"
+            echo "🔗 Commit: ${{ github.sha }}"
+            echo "🌿 Branch: ${{ github.ref }}"
+            echo "👤 Ejecutado por: ${{ github.actor }}"
+
+            cd /home/deployer/scripts
+
+            # Copiar scripts del repo al servidor (solo si existen)
+            rsync -avz --delete ./ /home/deployer/scripts/
+
+            # Dar permisos
+            chmod +x /home/deployer/scripts/*.sh
+
+            script: |
+            set -e
+              echo "📦 Sincronizando carpeta APP..."
+              rsync -avz --delete ./app/ /home/deployer/app/
+            
+              echo "▶️ Ejecutando cambio.sh..."
+              /home/deployer/scripts/cambio.sh "${{ secrets.SERVER_PASSWORD }}"
+
+            echo "🌐 IP Pública:"
+            curl -s ifconfig.me || echo "IP no disponible"
+
+      - name: "🔔 Notificación final"
+        if: always()
+        run: |
+          if [ "${{ job.status }}" = "success" ]; then
+            echo "🎉 Deploy exitoso en: http://${{ secrets.SSH_HOST }}"
+          else
+            echo "⚠️ El deploy falló"
+          fi
