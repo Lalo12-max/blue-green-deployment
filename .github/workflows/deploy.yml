@@ -56,30 +56,14 @@ jobs:
           fi
           echo "✅ Dependencias instaladas"
 
-      - name: "🔧 Configurar entorno de pruebas (Jest / Supertest)"
+      - name: "🔧 Verificación de Jest instalado"
         working-directory: ./app
         run: |
-          # Instalar dependencias dev si hacen falta
           if ! npm list jest > /dev/null 2>&1; then
             echo "📦 Instalando Jest y Supertest..."
             npm install --save-dev jest supertest
           fi
 
-          # Crear jest.config.js si no existe
-          if [ ! -f "jest.config.js" ]; then
-            cat > jest.config.js << 'JESTCONFIG'
-              module.exports = {
-                testEnvironment: 'node',
-                verbose: true,
-                collectCoverage: true,
-                coverageDirectory: 'coverage',
-                coverageReporters: ['text', 'lcov'],
-                testMatch: ['**/server.test.js', '**/*.test.js'],
-                setupFilesAfterEnv: [],
-              };
-              JESTCONFIG
-            echo "✅ Configuración de Jest creada"
-          fi
 
       - name: "🧪 Ejecutar pruebas de integración"
         working-directory: ./app
