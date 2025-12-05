@@ -78,17 +78,21 @@ if curl -fs http://localhost:$HEALTH_PORT/health >/dev/null; then
     log "Healthcheck OK en $INACTIVE (puerto $HEALTH_PORT)"
 else
     log "ERROR: Healthcheck falló en $INACTIVE. Revirtiendo..."
-    docker compose down
+    docker compose down || true
     exit 1
 fi
 
 #############################################
-# FASE 4 - Nginx switch
+# FASE 4 - Nginx switch sin pedir password
 #############################################
 log "FASE 4: Cambiando tráfico a $INACTIVE"
 
+# Se asume que deployer tiene NOPASSWD configurado para estos comandos
 sudo ln -sf /srv/app/$INACTIVE/nginx.conf /etc/nginx/sites-enabled/app.conf
-sudo nginx -t && sudo systemctl reload nginx
+sudo nginx -t
+sudo systemctl reload nginx
+
+log "Tráfico redirigido a $INACTIVE correctamente"
 
 #############################################
 # FASE 5 - Apagar versión vieja
