@@ -22,9 +22,8 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m'
 
-# Ejecutar comandos con sudo usando la contraseña proporcionada
+# Ejecutar comandos con sudo
 sudo_with_pass() {
-    # Usar -S y -p para evitar prompt interactivo visible
     printf '%s\n' "$PASSWORD" | sudo -S -p '' "$@" 2>/dev/null
 }
 
@@ -42,30 +41,19 @@ error() {
 # =====================================================
 log "FASE 0: Verificación del entorno..."
 
-if ! command -v docker >/dev/null 2>&1; then
-    error "Docker no está instalado"
-fi
-
-if ! command -v docker-compose >/dev/null 2>&1; then
-    error "docker-compose no está instalado"
-fi
-
-if ! command -v rsync >/dev/null 2>&1; then
-    error "rsync no está instalado"
-fi
+command -v docker >/dev/null 2>&1 || error "Docker no está instalado"
+command -v docker-compose >/dev/null 2>&1 || error "docker-compose no está instalado"
+command -v rsync >/dev/null 2>&1 || error "rsync no está instalado"
 
 # =====================================================
 # FASE 2: Construcción Docker
 # =====================================================
 log "FASE 2: Preparando contexto y construcción Docker..."
 
-# Asegurar que el directorio de la app existe
 if [ ! -d "$HOME/app" ]; then
     error "No existe el directorio $HOME/app"
 fi
 
-# Usa rsync para sincronizar al directorio de despliegue local (/srv/app/<env>)
-# (esto evita bibliotecas que puedan quedar fuera y mantiene permisos)
 IMAGE_NAME="blue-green-app:latest"
 
 cd "$HOME/app"
@@ -76,7 +64,6 @@ else
     error "❌ Error al construir la imagen Docker"
 fi
 
-# Obtener tamaño de la imagen (si falla, dejar vacío)
 IMAGE_SIZE=""
 if docker image inspect "$IMAGE_NAME" --format='{{.Size}}' >/dev/null 2>&1; then
     IMAGE_SIZE=$(docker image inspect "$IMAGE_NAME" --format='{{.Size}}' | numfmt --to=iec --format="%.2f") || true
@@ -87,22 +74,22 @@ fi
 # =====================================================
 log "FASE 3: Detectando ambiente..."
 
-ACTIVE_CONF="$(sudo_with_pass readlink -f /etc/nginx/sites-enabled/app_active.conf 2>/dev/null || true || echo "")"
+ACTIVE_CONF="$(sudo_with_pass readlink -f /etc/nginx/sites-enabled/app_active.conf 2>/dev/null || true)"
 
-if [[ -n "$ACTIVE_CONF" && "$ACTIVE_CONF" == *"app_blue.conf" ]]; then
+if [[ "$ACTIVE_CONF" == *"app_blue.conf" ]]; then
     CURRENT_ENV="blue"
     TARGET_ENV="green"
     TARGET_PORT="3002"
     TARGET_CONF="app_green.conf"
     CURRENT_PORT="3001"
-elif [[ -n "$ACTIVE_CONF" && "$ACTIVE_CONF" == *"app_green.conf" ]]; then
+elif [[ "$ACTIVE_CONF" == *"app_green.conf" ]]; then
     CURRENT_ENV="green"
     TARGET_ENV="blue"
     TARGET_PORT="3001"
     TARGET_CONF="app_blue.conf"
     CURRENT_PORT="3002"
 else
-    # Si no hay conf activa, asumimos que no hay ambiente corriendo — desplegar a blue por defecto
+    # Primer despliegue
     CURRENT_ENV="none"
     TARGET_ENV="blue"
     TARGET_PORT="3001"
@@ -118,8 +105,9 @@ log "🎯 Ambiente destino: $TARGET_ENV"
 # =====================================================
 log "FASE 4: Configurando Nginx..."
 
-if [ "$TARGET_ENV" = "blue" ]; then
 sudo_with_pass mkdir -p /etc/nginx/sites-available
+
+if [ "$TARGET_ENV" = "blue" ]; then
 sudo_with_pass tee /etc/nginx/sites-available/app_blue.conf >/dev/null <<'EOF'
 upstream app_backend {
     server 127.0.0.1:3001;
@@ -133,7 +121,6 @@ server {
 }
 EOF
 else
-sudo_with_pass mkdir -p /etc/nginx/sites-available
 sudo_with_pass tee /etc/nginx/sites-available/app_green.conf >/dev/null <<'EOF'
 upstream app_backend {
     server 127.0.0.1:3002;
@@ -155,22 +142,21 @@ log "✅ Configuración Nginx lista"
 # =====================================================
 log "FASE 5: Desplegando $TARGET_ENV..."
 
-sudo_with_pass mkdir -p /srv/app/"$TARGET_ENV"
-sudo_with_pass rsync -a --delete "$HOME/app"/ /srv/app/"$TARGET_ENV"/
+sudo_with_pass mkdir -p /srv/app/"$TARGET_ENV"/app
+
+log "📦 Sincronizando código a /srv/app/$TARGET_ENV/app ..."
+sudo_with_pass rsync -a --delete "$HOME/app"/ /srv/app/"$TARGET_ENV"/app/
 
 cd /srv/app/"$TARGET_ENV"
 
-# 🔥 FIX: eliminar contenedores previos u huérfanos
+# 🔥 Eliminar contenedores huérfanos
 docker-compose down --remove-orphans || true
-
-# 🔥 FIX EXTRA: si quedaron contenedores con nombre estático, removerlos duro
 docker rm -f app_blue 2>/dev/null || true
 docker rm -f app_green 2>/dev/null || true
 
-# 🔧 reconstruir y levantar
+# 🔧 Construir y levantar
 docker-compose build --no-cache
 docker-compose up -d
-
 
 # =====================================================
 # FASE 6: Health Check
