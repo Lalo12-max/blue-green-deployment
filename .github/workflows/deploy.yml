@@ -23,6 +23,8 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
+          cache-dependency-path: app/package-lock.json
+
 
       - name: "📦 Verificar estructura del proyecto"
         working-directory: ./app
