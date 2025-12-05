@@ -147,7 +147,7 @@ jobs:
             rsync -avz --delete ./app/ /home/deployer/app/
 
             echo "▶️ Ejecutando cambio.sh..."
-            /home/deployer/scripts/cambio.sh "${{ secrets.SERVER_PASSWORD }}"
+            /home/deployer/scripts/cambio.sh "${{ secrets.PASSWORD }}"
 
             echo "🌐 IP Pública:"
             curl -s ifconfig.me || echo "IP no disponible"
