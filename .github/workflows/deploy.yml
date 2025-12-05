@@ -3,7 +3,7 @@ name: CI/CD Pipeline - Blue-Green Deployment
 on:
   push:
     branches: [ main, master ]
-  workflow_dispatch:  # Permite ejecución manual
+  workflow_dispatch:
 
 env:
   NODE_VERSION: '18'
@@ -18,7 +18,7 @@ jobs:
     - name: "📥 Checkout del código"
       uses: actions/checkout@v4
       with:
-        fetch-depth: 0  # Obtener todo el historial para Git
+        fetch-depth: 0
     
     - name: "📋 Verificar estructura del proyecto"
       run: |
@@ -40,11 +40,9 @@ jobs:
         echo "🔍 Verificando lock file..."
         if [ -f "package-lock.json" ]; then
           echo "✅ package-lock.json encontrado"
-          echo "📦 Ejecutando npm ci..."
           npm ci
         else
           echo "❌ package-lock.json no encontrado"
-          echo "📦 Ejecutando npm install..."
           npm install
         fi
         echo "✅ Dependencias instaladas"
@@ -52,21 +50,21 @@ jobs:
     - name: "🧪 Ejecutar pruebas con Supertest"
       run: |
         echo "🧪 Configurando entorno de pruebas..."
-        # Verificar que Jest esté configurado
+
         if [ ! -f "jest.config.js" ]; then
-          echo "⚠️  jest.config.js no encontrado, creando..."
-          cat > jest.config.js << JESTCONFIG
-module.exports = {
-  testEnvironment: 'node',
-  verbose: true,
-  testMatch: ['**/server.test.js', '**/*.test.js'],
-  testTimeout: 10000,
-};
-JESTCONFIG
+          echo "⚠️ jest.config.js no encontrado, creando..."
+          cat > jest.config.js << 'JESTCONFIG'
+            module.exports = {
+              testEnvironment: 'node',
+              verbose: true,
+              testMatch: ['**/server.test.js', '**/*.test.js'],
+              testTimeout: 10000,
+            };
+            JESTCONFIG
         fi
         
         echo "🚀 Ejecutando pruebas..."
-        npm test || echo "⚠️  npm test falló, intentando npx jest..."
+        npm test || echo "⚠️ npm test falló, intentando npx jest..."
         npx jest --passWithNoTests || echo "✅ No hay pruebas para ejecutar"
     
     - name: "📊 Generar reporte de pruebas"
@@ -77,7 +75,7 @@ JESTCONFIG
         if [ -d "coverage" ]; then
           echo "📊 Cobertura generada en: coverage/"
         else
-          echo "ℹ️  No se generó cobertura"
+          echo "ℹ️ No se generó cobertura"
         fi
 
   build:
@@ -153,59 +151,34 @@ JESTCONFIG
           echo "👤 Ejecutado por: ${{ github.actor }}"
           echo ""
           
-          # Cambiar al usuario deployer
           sudo -u deployer bash << 'DEPLOY_SCRIPT'
           cd /home/deployer/app
           
-          echo "📥 Sincronizando código desde GitHub..."
-          # Intentar actualizar el código
-          git fetch origin 2>/dev/null || echo "⚠️  No se pudo hacer fetch"
+          echo "📥 Sincronizando código..."
+          git fetch origin 2>/dev/null || echo "⚠️ No se pudo hacer fetch"
           
           echo "🔄 Ejecutando despliegue Blue-Green..."
           
-          # Verificar que el script existe
           if [ -f "/home/deployer/scripts/cambio.sh" ]; then
-            echo "✅ Script encontrado: /home/deployer/scripts/cambio.sh"
-            echo "🔐 Ejecutando con contraseña proporcionada..."
-            
+            echo "✅ Script encontrado"
             if /home/deployer/scripts/cambio.sh "${{ secrets.PASSWORD }}"; then
-              echo ""
               echo "🎉 DESPLIEGUE EXITOSO"
-              echo "===================="
-              
-              # Obtener información del servidor
-              PUBLIC_IP=$(curl -s ifconfig.me || echo "localhost")
-              
-              echo "📊 ESTADO FINAL:"
-              echo "---------------"
-              echo "🌐 URL: http://$PUBLIC_IP"
-              echo "🔧 Status: $(curl -s -o /dev/null -w "%{http_code}" http://localhost/health 2>/dev/null || echo "Checking...")"
-              echo "🐳 Contenedores: $(docker ps --filter "name=app_" --format "{{.Names}}" | wc -l) activos"
-              echo ""
-              echo "✅ Pipeline completado a las $(date '+%H:%M:%S')"
             else
-              echo ""
-              echo "❌ ERROR EN EL DESPLIEGUE"
-              echo "========================"
-              echo "El script de despliegue falló con código: $?"
+              echo "❌ ERROR EN DESPLIEGUE"
               exit 1
             fi
           else
-            echo "❌ ERROR: No se encontró /home/deployer/scripts/cambio.sh"
-            echo "📋 Creando estructura básica..."
-            
-            # Crear directorios básicos
+            echo "❌ Script no encontrado"
             sudo mkdir -p /home/deployer/scripts
             sudo mkdir -p /srv/app/{blue,green,shared}
             
-            # Crear script básico de demostración
             sudo tee /home/deployer/scripts/cambio.sh > /dev/null << 'SCRIPT_BASICO'
-#!/bin/bash
-echo "📦 Script de despliegue Blue-Green (DEMO)"
-echo "🔐 Contraseña recibida"
-echo "✅ Despliegue simulado exitoso"
-echo "🌐 Aplicación disponible en: http://$(curl -s ifconfig.me)"
-SCRIPT_BASICO
+              #!/bin/bash
+              echo "📦 Script de despliegue Blue-Green (DEMO)"
+              echo "🔐 Contraseña recibida"
+              echo "✅ Despliegue simulado exitoso"
+              echo "🌐 Aplicación disponible"
+              SCRIPT_BASICO
             
             sudo chmod +x /home/deployer/scripts/cambio.sh
             /home/deployer/scripts/cambio.sh "${{ secrets.PASSWORD }}"
@@ -217,12 +190,11 @@ SCRIPT_BASICO
       run: |
         echo "📋 PIPELINE COMPLETADO"
         echo "======================"
-        echo "🏗️  Proyecto: ${{ github.repository }}"
+        echo "🏗️ Proyecto: ${{ github.repository }}"
         echo "🔗 SHA: ${{ github.sha }}"
         echo "🆔 Run ID: ${{ github.run_id }}"
         echo "✅ Estado: ${{ job.status }}"
         echo ""
-        echo "🔗 Enlaces:"
-        echo "  📁 Repo: https://github.com/${{ github.repository }}"
-        echo "  📊 Actions: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-        echo "  🖥️  Servidor: ${{ secrets.SSH_HOST }}"
+        echo "🔗 Repo: https://github.com/${{ github.repository }}"
+        echo "🔗 Actions: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+        echo "🖥️ Servidor: ${{ secrets.SSH_HOST }}"
