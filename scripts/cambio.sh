@@ -61,7 +61,6 @@ sleep 10
 #############################################
 log "FASE 3: Ejecutando healthcheck..."
 
-# CORREGIDO PUERTO: 3000
 if curl -fs http://localhost:3000/health >/dev/null; then
     log "Healthcheck OK"
 else
