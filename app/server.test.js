@@ -1,5 +1,5 @@
 const request = require('supertest');
-const app = require('./server');
+const app = require("./app");
 
 describe('API Endpoints', () => {
     // Test 1: Health check endpoint
