@@ -15,7 +15,7 @@ app.get('/', (req, res) => {
         version: VERSION,
         timestamp: new Date().toISOString(),
         hostname: os.hostname(),
-        status: 'active',
+        status: 'activje',
         port: PORT
     });
 });
